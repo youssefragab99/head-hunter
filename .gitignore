@@ -3,3 +3,6 @@
 
 # Python virtual environment
 venv/
+
+# Vscode environment
+.vscode/
