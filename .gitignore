@@ -1,0 +1,5 @@
+# Keys file 
+*.yaml
+
+# Python virtual environment
+venv/
