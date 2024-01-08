@@ -5,7 +5,6 @@ from openai import OpenAI
 
 with open("keys.yaml", "r") as f:
     open_ai_key = yaml.load(f, Loader=yaml.FullLoader)["open_ai_key"]
-os.environ["OPENAI_API_KEY"] = ""
 
 
 class Client:
@@ -23,7 +22,9 @@ class Assistant:
             self.client.client.beta.assistants.delete(assistant_id=assistant_id)
             print(f"Deleted assistant {assistant_id}")
 
-    def create_assistant(self, assistant_name: str):
+    def create_assistant(self, assistant_name: str,
+                         instructions: str = None,
+                         tools: list = None):
         try:
             assistant_list = self.client.client.beta.assistants.list()
             assistant_counter = 0
@@ -50,6 +51,7 @@ class Assistant:
                     model="gpt-4",
                     name=assistant_name,
                     description="This is my first assistant",
+                    instructions=instructions
                 )
 
             return assistant
@@ -59,10 +61,68 @@ class Assistant:
             print(f"Error: {e}")
 
 
-# if __name__ == "__main__":
-#     client = Client(open_ai_key)
+class Resume:
+    def __init__(self, client):
+        self.client = client
 
-#     assistant = Assistant(client)
+    def upload_resume_file(self, file_path: str, purpose: str = "assistants"):
+        try:
+            resume = self.client.client.files.create(
+                file=open(file_path, "rb"), purpose=purpose
+            )
+            print("Resume file uploaded successfully")
+            return resume
+        except Exception as e:
+            print("Error while uploading resume file")
+            print(f"Error: {e}")
+
+    def view_files(self, purpose: str = None):
+        files = self.client.client.files.list(purpose=purpose)
+        return files 
+    
+    def delete_file(self, file_id: str):
+        try:
+            self.client.client.files.delete(file_id=file_id)
+            print(f'File deleted successfully: {file_id}')
+        except Exception as e:
+            print("Error while deleting file, file not found")
+            print(f"Error: {e}")
+            
+class Thread:
+    def __init__(self, client):
+        self.client = client
+        self.assistant = Assistant(client)
+        self.resume = Resume(client)
+        
+    def summarize_resume(self, resume_path: str):
+        try:
+            self.resume.upload_resume_file(file_path=resume_path, purpose="assistants")
+        except Exception as e:
+            print("Error while uploading resume file")
+            print(f"Error: {e}")
+            
+        try:
+            file_id = self.resume.view_files(purpose="assistants").data[0].id 
+            print(f"File id: {file_id}")
+        except Exception as e:
+            file_id = None
+            print("Error while reading resume file id")
+        
+        self.resume.delete_file(file_id=file_id)
+        
+
+
+if __name__ == "__main__":
+    client = Client(open_ai_key)
+
+    # resume = Resume(client)
+    # resume.upload_resume_file(file_path="files/resume.docx")
+    # resume.view_files()
+    
+    thread = Thread(client)
+    thread.summarize_resume(resume_path="files/resume.docx")
+
+    # assistant = Assistant(client)
 
 #     test_assistant = assistant.create_assistant("test_assistant")
 
