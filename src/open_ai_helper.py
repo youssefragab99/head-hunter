@@ -1,5 +1,3 @@
-import os
-
 import yaml
 from openai import OpenAI
 
@@ -143,7 +141,7 @@ class Resume:
     def delete_file(self, file_id: str):
         """delete_file Delete file after use
 
-        Deletes file uploaded to the openai account 
+        Deletes file uploaded to the openai account
 
         Parameters
         ----------
