@@ -79,44 +79,59 @@ class Assistant:
                     description="This is my first assistant",
                     instructions=instructions,
                 )
-            print(type(assistant))
             return assistant
 
         except Exception as e:
             print("Error while creating assistant")
             print(f"Error: {e}")
 
+    def delete_assistant(self, assistant_id: str):
+        """delete_assistant deletes the assistant with the given id
 
-class Resume:
+        Delete the assistant with the given id
+
+        Parameters
+        ----------
+        assistant_id : str
+            Assistant id to be deleted
+        """
+        try:
+            self.client.client.beta.assistants.delete(assistant_id=assistant_id)
+            print(f"Assistant deleted successfully: {assistant_id}")
+        except Exception as e:
+            print("Error while deleting assistant, assistant not found")
+            print(f"Error: {e}")
+
+
+class Document:
     def __init__(self, client):
         self.client = client
 
-    def upload_resume_file(self, file_path: str, purpose: str = "assistants"):
-        """upload_resume_file uploads the resume file
+    def upload_document_file(self, file_path: str, purpose: str = "assistants"):
+        """upload_document_file uploads the document file
 
-        Uploads the resume file to the assistant object
+        Uploads the document file to the assistant object
 
         Parameters
         ----------
         file_path : str
-            Resume file local path to upload
+            Document file local path to upload
         purpose : str, optional
             Purpose required by the openai api, by default "assistants"
 
         Returns
         -------
         'openai.types.file_object.FileObject
-            File object for the resume
+            File object for the document
         """
         try:
-            resume = self.client.client.files.create(
+            document = self.client.client.files.create(
                 file=open(file_path, "rb"), purpose=purpose
             )
-            print("Resume file uploaded successfully")
-            print(type(resume))
-            return resume
+            print("Document file uploaded successfully")
+            return document
         except Exception as e:
-            print("Error while uploading resume file")
+            print("Error while uploading document file")
             print(f"Error: {e}")
 
     def view_files(self, purpose: str = "assistants"):
@@ -133,7 +148,7 @@ class Resume:
         Returns
         -------
         openai.types.file_object.FileObject
-            File object for the resume
+            File object for the document
         """
         files = self.client.client.files.list(purpose=purpose)
         return files
@@ -159,49 +174,72 @@ class Resume:
 class Thread:
     def __init__(self, client):
         self.client = client
-        self.assistant = Assistant(client)
-        self.resume = Resume(client)
+        self.assistant = Assistant(client).create_assistant(assistant_name="test")
+        self.document = Document(client)
+        self.thread = client.client.beta.threads.create()
 
-    def summarize_resume(self, resume_path: str):
+    def summarize_document(self, document_path: str):
+        """summarize_document Summarize the document
+
+        Ask chatgpt to read and summarize a document to use it as a reference
+
+        Parameters
+        ----------
+        document_path : str
+            Document path
+        """
         try:
-            self.resume.upload_resume_file(file_path=resume_path, purpose="assistants")
+            self.document.upload_document_file(
+                file_path=document_path, purpose="assistants"
+            )
         except Exception as e:
-            print("Error while uploading resume file")
-            print(f"Error: {e}")
+            print("Error while uploading document file")
+            print(f"Error: {repr(e)}")
 
         try:
-            print(type(self.resume.view_files()))
-            file_id = self.resume.view_files().data[0].id
+            file_id = self.document.view_files().data[0].id
             print(f"File id: {file_id}")
         except Exception as e:
             file_id = None
             print("Error while reading resume file id")
+            print(f"Error: {repr(e)}")
 
-        self.resume.delete_file(file_id=file_id)
+        summary = client.client.beta.threads.messages.create(
+            thread_id=self.thread.id,
+            role="user",
+            content="Reply by saying good night",
+        )
+
+        all_messages = client.client.beta.threads.messages.list(
+            thread_id=self.thread.id
+        )
+
+        print(summary)
+        print(all_messages)
+        print(type(all_messages))
+
+        self.document.delete_file(file_id=file_id)
+
+    def run_thread(self, thread, assistant):
+        run = client.client.beta.threads.runs.create(
+            thread_id=thread.id, assistant_id=assistant.id
+        )
+
+        return run.id
+
+    def view_run(self, thread_id: str, run_id: str):
+        run = client.client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run)
+        print(run)
+        return run
 
 
 if __name__ == "__main__":
     client = Client(open_ai_key)
-
-    # resume = Resume(client)
-    # resume.upload_resume_file(file_path="files/resume.docx")
-    # resume.view_files()
-
     thread = Thread(client)
-    thread.summarize_resume(resume_path="files/resume.docx")
+    # thread.summarize_document(document_path="files/resume.docx")
 
-    # assistant = Assistant(client)
+    run_id = thread.run_thread(thread=thread.thread, assistant=thread.assistant)
 
-    # test_assistant = assistant.create_assistant("test_assistant")
+    thread.view_run(thread_id=thread.thread.id, run_id=run_id)
 
-#     print(type(test_assistant))
-#     print(test_assistant)
-
-
-# # Detele all assistants:
-# client = Client(open_ai_key)
-# assistant = Assistant(client)
-# assistant_list = client.client.beta.assistants.list()
-# for id in assistant_list.data:
-#     assistant.client.client.beta.assistants.delete(assistant_id=id.id)
-#     print(f"Deleted assistant {id.id}")
+# run_4MZiplCyhGDraoD5mKeskrT1
