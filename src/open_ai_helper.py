@@ -1,19 +1,20 @@
+import time
+
 import yaml
 from openai import OpenAI
 
-with open("keys.yaml", "r") as f:
-    open_ai_key = yaml.load(f, Loader=yaml.FullLoader)["open_ai_key"]
-
 
 class Client:
-    def __init__(self, api_key):
-        self.api_key = api_key
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self):
+        with open("keys.yaml", "r") as f:
+            self.api_key = yaml.load(f, Loader=yaml.FullLoader)["open_ai_key"]
+        self.client = OpenAI(api_key=self.api_key)
 
 
 class Assistant:
     def __init__(self, client):
         self.client = client
+        self.document = Document(client)
 
     def delete_duplicate_assistants(self, assistant_ids: list):
         """delete_duplicate_assistants deletes all assistants in the list except the first one
@@ -30,7 +31,11 @@ class Assistant:
             print(f"Deleted assistant {assistant_id}")
 
     def create_assistant(
-        self, assistant_name: str, instructions: str = None, tools: list = None
+        self,
+        assistant_name: str,
+        instructions: str = None,
+        tools: list = None,
+        document_path: str = None,
     ):
         """create_assistant creates an assistant with the given name
 
@@ -51,6 +56,12 @@ class Assistant:
             Assistant object
 
         """
+        if document_path:
+            document = self.document.upload_document_file(file_path=document_path)
+            document_ids = [document.id]
+        else:
+            document_ids = None
+
         try:
             assistant_list = self.client.client.beta.assistants.list()
             assistant_counter = 0
@@ -74,11 +85,14 @@ class Assistant:
             elif assistant_counter == 0:
                 print("Assistant not found, creating new assistant")
                 assistant = self.client.client.beta.assistants.create(
-                    model="gpt-4",
+                    model="gpt-4-1106-preview",
                     name=assistant_name,
                     description="This is my first assistant",
                     instructions=instructions,
+                    file_ids=document_ids,
+                    tools=[{"type": "retrieval"}],
                 )
+            print(assistant)
             return assistant
 
         except Exception as e:
@@ -170,12 +184,31 @@ class Document:
             print("Error while deleting file, file not found")
             print(f"Error: {e}")
 
+    def delete_all_files(self):
+        """delete_all_files Delete all files
+
+        Deletes all files uploaded to the openai account
+        """
+        try:
+            files = self.view_files()
+            if len(files.data) == 0:
+                print("No files found")
+                return None
+            print(f"Found {len(files.data)} files")
+            for file in files.data:
+                self.delete_file(file_id=file.id)
+        except Exception as e:
+            print("Error while deleting files")
+            print(f"Error: {e}")
+
 
 class Thread:
     def __init__(self, client):
         self.client = client
-        self.assistant = Assistant(client).create_assistant(assistant_name="test")
         self.document = Document(client)
+        self.assistant = Assistant(client).create_assistant(
+            assistant_name="test", document_path="files/resume.docx"
+        )
         self.thread = client.client.beta.threads.create()
 
     def summarize_document(self, document_path: str):
@@ -207,39 +240,68 @@ class Thread:
         summary = client.client.beta.threads.messages.create(
             thread_id=self.thread.id,
             role="user",
-            content="Reply by saying good night",
+            content="What is the summary of the document?",
         )
 
-        all_messages = client.client.beta.threads.messages.list(
+        all_messages = self.client.client.beta.threads.messages.list(
             thread_id=self.thread.id
         )
 
         print(summary)
         print(all_messages)
-        print(type(all_messages))
+
+        run = self.run_thread(thread=self.thread, assistant=self.assistant)
+
+        self.view_run(thread_id=self.thread.id, run_id=run)
+
+        self.check_for_message(thread_id=self.thread.id, run_id=run)
 
         self.document.delete_file(file_id=file_id)
 
     def run_thread(self, thread, assistant):
-        run = client.client.beta.threads.runs.create(
+        run = self.client.client.beta.threads.runs.create(
             thread_id=thread.id, assistant_id=assistant.id
         )
 
+        print(run)
         return run.id
 
     def view_run(self, thread_id: str, run_id: str):
-        run = client.client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run)
+        completed = False
+        while completed == False:
+            run = self.client.client.beta.threads.runs.retrieve(
+                thread_id=thread_id, run_id=run_id
+            )
+
+            if run.status == "completed":
+                completed = True
+            else:
+                print("Run not completed yet")
+                time.sleep(5)
+
         print(run)
         return run
 
+    def check_for_message(self, thread_id: str, run_id: str):
+        messages = self.client.client.beta.threads.messages.list(
+            thread_id=thread_id
+        )
+        print(messages)
+
+    def view_thread(self, thread_id: str):
+        while True:
+            thread = self.client.client.beta.threads.retrieve(thread_id=thread_id)
+            self.view_messages(thread_id=thread_id)
+            print(thread)
+            time.sleep(5)
+
+    def view_messages(self, thread_id: str):
+        messages = self.client.client.beta.threads.messages.list(thread_id=thread_id)
+        print(messages)
+
 
 if __name__ == "__main__":
-    client = Client(open_ai_key)
+    client = Client()
     thread = Thread(client)
-    # thread.summarize_document(document_path="files/resume.docx")
-
-    run_id = thread.run_thread(thread=thread.thread, assistant=thread.assistant)
-
-    thread.view_run(thread_id=thread.thread.id, run_id=run_id)
-
-# run_4MZiplCyhGDraoD5mKeskrT1
+    thread.summarize_document(document_path="files/resume.docx")
+    document = Document(client)
