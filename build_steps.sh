@@ -1,0 +1,3 @@
+SRC_DIR='src'
+
+export PYTHONPATH="${PYTHONPATH}:${SRC_DIR}"
