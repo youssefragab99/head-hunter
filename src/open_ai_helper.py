@@ -1,5 +1,6 @@
 import time
 
+import openai
 import yaml
 from openai import OpenAI
 
@@ -267,6 +268,22 @@ class Thread:
         return run.id
 
     def view_run(self, thread_id: str, run_id: str):
+        """view_run View a run
+
+        View a run when it is completed
+
+        Parameters
+        ----------
+        thread_id : str
+            Thread ID for the run
+        run_id : str
+            Run ID
+
+        Returns
+        -------
+        openai.types.beta.threads.run.Run
+            Run object
+        """
         completed = False
         while completed == False:
             run = self.client.client.beta.threads.runs.retrieve(
@@ -279,13 +296,19 @@ class Thread:
                 print("Run not completed yet")
                 time.sleep(5)
 
-        print(run)
         return run
 
-    def check_for_message(self, thread_id: str, run_id: str):
-        messages = self.client.client.beta.threads.messages.list(
-            thread_id=thread_id
-        )
+    def check_for_message(self, thread_id: str):
+        """check_for_message Check for messages
+
+        Check for messages in a thread
+
+        Parameters
+        ----------
+        thread_id : str
+            Thread ID
+        """
+        messages = self.client.client.beta.threads.messages.list(thread_id=thread_id)
         print(messages)
 
     def view_thread(self, thread_id: str):
