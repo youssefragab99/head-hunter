@@ -10,102 +10,96 @@ class Client:
             self.api_key = yaml.load(f, Loader=yaml.FullLoader)["open_ai_key"]
         self.client = OpenAI(api_key=self.api_key)
 
+
 def delete_assistant(client, assistant_id: list):
-        """delete_assistant deletes the assistant with the given id
+    """delete_assistant deletes the assistant with the given id
 
-        Delete the assistant with the given id
+    Delete the assistant with the given id
 
-        Parameters
-        ----------
-        assistant_id : str
-            Assistant id to be deleted
-        """
-        try:
-            for assistant_id in assistant_id:
-                client.client.beta.assistants.delete(assistant_id=assistant_id)
-            print(f"Assistant deleted successfully: {assistant_id}")
-        except Exception as e:
-            print("Error while deleting assistant, assistant not found")
-            print(f"Error: {e}")
-            
+    Parameters
+    ----------
+    assistant_id : str
+        Assistant id to be deleted
+    """
+    try:
+        for assistant_id in assistant_id:
+            client.client.beta.assistants.delete(assistant_id=assistant_id)
+        print(f"Assistant deleted successfully: {assistant_id}")
+    except Exception as e:
+        print("Error while deleting assistant, assistant not found")
+        print(f"Error: {e}")
+
+
 def create_assistant(
-        client,
-        document,
-        assistant_name: str,
-        instructions: str = None,
-        tools: list = None,
-    ):
-        """create_assistant creates an assistant with the given name
+    client,
+    assistant_name: str,
+    document_ids: list = None,
+    instructions: str = None,
+    tools: list = None,
+):
+    """create_assistant creates an assistant with the given name
 
-        Create an assistant with the name provided
+    Create an assistant with the name provided
 
-        Parameters
-        ----------
-        assistant_name : str
-            Name of the assistant to be created
-        instructions : str, optional
-            Any specific instructions to be provided for the assistant, by default None
-        tools : list, optional
-            Tools the assistant can use, by default None
+    Parameters
+    ----------
+    assistant_name : str
+        Name of the assistant to be created
+    instructions : str, optional
+        Any specific instructions to be provided for the assistant, by default None
+    tools : list, optional
+        Tools the assistant can use, by default None
 
-        Returns
-        -------
-        openai.types.beta.assistant.Assistant
-            Assistant object
+    Returns
+    -------
+    openai.types.beta.assistant.Assistant
+        Assistant object
 
-        """
-        document = document
-        document_ids = [document.document.id]
+    """
 
-        try:
-            assistant_list = client.client.beta.assistants.list()
-            assistant_counter = 0
-            id_list = []
-            for assistant in assistant_list.data:
-                if assistant.name == assistant_name:
-                    assistant_counter += 1
-                    id_list.append(assistant.id)
+    try:
+        assistant_list = client.client.beta.assistants.list()
+        assistant_counter = 0
+        id_list = []
+        for assistant in assistant_list.data:
+            if assistant.name == assistant_name:
+                assistant_counter += 1
+                id_list.append(assistant.id)
 
-            if assistant_counter > 1:
-                print(
-                    "More than one assistant with the same name, selecting the first one"
-                )
-                id = id_list[0]
-                assistant = client.client.beta.assistants.retrieve(assistant_id=id)
-                delete_assistant(client=client, assistant_ids=id_list[1:])
-            elif assistant_counter == 1:
-                print("Assistant found")
-                id = id_list[0]
-                assistant = client.client.beta.assistants.retrieve(assistant_id=id)
-            elif assistant_counter == 0:
-                print("Assistant not found, creating new assistant")
-                assistant = client.client.beta.assistants.create(
-                    model="gpt-4-1106-preview",
-                    name=assistant_name,
-                    description="This is my first assistant",
-                    instructions=instructions,
-                    file_ids=document_ids,
-                    tools=[{"type": "retrieval"}],
-                )
-            print(assistant)
-            return assistant
+        if assistant_counter > 1:
+            print("More than one assistant with the same name, selecting the first one")
+            id = id_list[0]
+            assistant = client.client.beta.assistants.retrieve(assistant_id=id)
+            delete_assistant(client=client, assistant_ids=id_list[1:])
+        elif assistant_counter == 1:
+            print("Assistant found")
+            id = id_list[0]
+            assistant = client.client.beta.assistants.retrieve(assistant_id=id)
+        elif assistant_counter == 0:
+            print("Assistant not found, creating new assistant")
+            assistant = client.client.beta.assistants.create(
+                model="gpt-4-1106-preview",
+                name=assistant_name,
+                description="This is my first assistant",
+                instructions=instructions,
+                file_ids=document_ids,
+                tools=[{"type": "retrieval"}],
+            )
+        print(assistant)
+        return assistant
 
-        except Exception as e:
-            print("Error while creating assistant")
-            print(f"Error: {e}")
-
-            
+    except Exception as e:
+        print("Error while creating assistant")
+        print(f"Error: {e}")
 
 
 class Assistant:
-    def __init__(self, client,
-                 document_path: str = None,
-                 assistant_name: str = None):
+    def __init__(self, client, document_ids: list = None, assistant_name: str = None):
         self.client = client
-        self.document = Document(client, document_path=document_path)
-        self.document_path = document_path
-        self.assistant = create_assistant(client=client, document=self.document, assistant_name="test_assistant")
-
+        
+        self.assistant = create_assistant(
+            client=client, document_ids=document_ids, assistant_name=assistant_name
+        )
 
 
 class Document:
@@ -120,6 +114,7 @@ class Document:
         except Exception as e:
             print("Error while uploading document file")
             print(f"Error: {e}")
+
 
     def view_files(self, purpose: str = "assistants"):
         """view_files returns the list of files uploaded to the assistant
@@ -175,52 +170,19 @@ class Document:
             print(f"Error: {e}")
 
 
+class AssistantDocs:
+    def __init__(self, client, files: dict):
+        
+        self.client = client
+        
+        self.resume = Document(client, document_path=files["resume"])
+        self.job_listing = Document(client, document_path=files["job_listing"])
+        
+        
 class Thread:
     def __init__(self, client):
         self.client = client
-        self.assistant = Assistant(client, document_path="files/resume.docx")
-        self.document = self.assistant.document
         self.thread = client.client.beta.threads.create()
-
-    def summarize_document(self, document_path: str):
-        """summarize_document Summarize the document
-
-        Ask chatgpt to read and summarize a document to use it as a reference
-
-        Parameters
-        ----------
-        document_path : str
-            Document path
-        """
-
-        try:
-            file_id = self.document.view_files().data[0].id
-            print(f"File id: {file_id}")
-        except Exception as e:
-            file_id = None
-            print("Error while reading resume file id")
-            print(f"Error: {repr(e)}")
-
-        summary = client.client.beta.threads.messages.create(
-            thread_id=self.thread.id,
-            role="user",
-            content="What is the summary of the document?",
-        )
-
-        all_messages = self.client.client.beta.threads.messages.list(
-            thread_id=self.thread.id
-        )
-
-        print(summary)
-        print(all_messages)
-
-        run = self.run_thread(thread=self.thread, assistant=self.assistant)
-
-        self.view_run(thread_id=self.thread.id, run_id=run)
-
-        self.check_for_message(thread_id=self.thread.id)
-
-        self.document.delete_file(file_id=file_id)
 
     def run_thread(self, thread, assistant):
         run = self.client.client.beta.threads.runs.create(
@@ -283,10 +245,58 @@ class Thread:
 
     def view_messages(self, thread_id: str):
         messages = self.client.client.beta.threads.messages.list(thread_id=thread_id)
-        print(messages)
+        return messages
 
 
-if __name__ == "__main__":
-    client = Client()
-    thread = Thread(client)
-    thread.summarize_document(document_path="files/resume.docx")
+def view_message(client, thread_id: str, run_id: str):
+    while True:
+        thread = client.client.beta.threads.retrieve(thread_id=thread_id)
+
+        completed = False
+        while completed == False:
+            run = client.client.beta.threads.runs.retrieve(
+                thread_id=thread_id, run_id=run_id
+            )
+
+            if run.status == "completed":
+                completed = True
+            else:
+                print("Run not completed yet")
+                time.sleep(5)
+
+        message = client.client.beta.threads.messages.list(thread_id=thread_id)
+
+        return message
+
+
+def ask_question(client, thread_id: str, assistant_id: str, question: str,
+                 document_ids: list = None):
+    """ask_question Ask a question
+
+    Ask a question to the assistant
+
+    Parameters
+    ----------
+    thread_id : str
+        Thread ID
+    assistant_id : str
+        Assistant ID
+    question : str
+        Question to be asked
+    """
+    question = client.client.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content=question,
+        file_ids=document_ids,
+    )
+
+    print(question)
+
+    run = client.client.beta.threads.runs.create(
+        thread_id=thread_id, assistant_id=assistant_id
+    )
+
+    response = view_message(client=client, thread_id=thread_id, run_id=run.id)
+
+    return response
