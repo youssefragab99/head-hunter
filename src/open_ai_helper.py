@@ -1,6 +1,5 @@
 import time
 
-import openai
 import yaml
 from openai import OpenAI
 
@@ -11,32 +10,30 @@ class Client:
             self.api_key = yaml.load(f, Loader=yaml.FullLoader)["open_ai_key"]
         self.client = OpenAI(api_key=self.api_key)
 
+def delete_assistant(client, assistant_id: list):
+        """delete_assistant deletes the assistant with the given id
 
-class Assistant:
-    def __init__(self, client):
-        self.client = client
-        self.document = Document(client)
-
-    def delete_duplicate_assistants(self, assistant_ids: list):
-        """delete_duplicate_assistants deletes all assistants in the list except the first one
-
-        If there are more than one assistant with the same name, this function will delete all of them except the first one
+        Delete the assistant with the given id
 
         Parameters
         ----------
-        assistant_ids : list
-            List of assistant ids to be deleted
+        assistant_id : str
+            Assistant id to be deleted
         """
-        for assistant_id in assistant_ids:
-            self.client.client.beta.assistants.delete(assistant_id=assistant_id)
-            print(f"Deleted assistant {assistant_id}")
-
-    def create_assistant(
-        self,
+        try:
+            for assistant_id in assistant_id:
+                client.client.beta.assistants.delete(assistant_id=assistant_id)
+            print(f"Assistant deleted successfully: {assistant_id}")
+        except Exception as e:
+            print("Error while deleting assistant, assistant not found")
+            print(f"Error: {e}")
+            
+def create_assistant(
+        client,
+        document,
         assistant_name: str,
         instructions: str = None,
         tools: list = None,
-        document_path: str = None,
     ):
         """create_assistant creates an assistant with the given name
 
@@ -57,14 +54,11 @@ class Assistant:
             Assistant object
 
         """
-        if document_path:
-            document = self.document.upload_document_file(file_path=document_path)
-            document_ids = [document.id]
-        else:
-            document_ids = None
+        document = document
+        document_ids = [document.document.id]
 
         try:
-            assistant_list = self.client.client.beta.assistants.list()
+            assistant_list = client.client.beta.assistants.list()
             assistant_counter = 0
             id_list = []
             for assistant in assistant_list.data:
@@ -77,15 +71,15 @@ class Assistant:
                     "More than one assistant with the same name, selecting the first one"
                 )
                 id = id_list[0]
-                assistant = self.client.client.beta.assistants.retrieve(assistant_id=id)
-                self.delete_duplicate_assistants(assistant_ids=id_list[1:])
+                assistant = client.client.beta.assistants.retrieve(assistant_id=id)
+                delete_assistant(client=client, assistant_ids=id_list[1:])
             elif assistant_counter == 1:
                 print("Assistant found")
                 id = id_list[0]
-                assistant = self.client.client.beta.assistants.retrieve(assistant_id=id)
+                assistant = client.client.beta.assistants.retrieve(assistant_id=id)
             elif assistant_counter == 0:
                 print("Assistant not found, creating new assistant")
-                assistant = self.client.client.beta.assistants.create(
+                assistant = client.client.beta.assistants.create(
                     model="gpt-4-1106-preview",
                     name=assistant_name,
                     description="This is my first assistant",
@@ -100,51 +94,29 @@ class Assistant:
             print("Error while creating assistant")
             print(f"Error: {e}")
 
-    def delete_assistant(self, assistant_id: str):
-        """delete_assistant deletes the assistant with the given id
+            
 
-        Delete the assistant with the given id
 
-        Parameters
-        ----------
-        assistant_id : str
-            Assistant id to be deleted
-        """
-        try:
-            self.client.client.beta.assistants.delete(assistant_id=assistant_id)
-            print(f"Assistant deleted successfully: {assistant_id}")
-        except Exception as e:
-            print("Error while deleting assistant, assistant not found")
-            print(f"Error: {e}")
+class Assistant:
+    def __init__(self, client,
+                 document_path: str = None,
+                 assistant_name: str = None):
+        self.client = client
+        self.document = Document(client, document_path=document_path)
+        self.document_path = document_path
+        self.assistant = create_assistant(client=client, document=self.document, assistant_name="test_assistant")
+
 
 
 class Document:
-    def __init__(self, client):
+    def __init__(self, client, document_path: str = None):
         self.client = client
-
-    def upload_document_file(self, file_path: str, purpose: str = "assistants"):
-        """upload_document_file uploads the document file
-
-        Uploads the document file to the assistant object
-
-        Parameters
-        ----------
-        file_path : str
-            Document file local path to upload
-        purpose : str, optional
-            Purpose required by the openai api, by default "assistants"
-
-        Returns
-        -------
-        'openai.types.file_object.FileObject
-            File object for the document
-        """
+        self.document_path = document_path
+        
         try:
-            document = self.client.client.files.create(
-                file=open(file_path, "rb"), purpose=purpose
-            )
-            print("Document file uploaded successfully")
-            return document
+            self.document = client.client.files.create(
+            file=open(document_path, "rb"), purpose="assistants"
+        )
         except Exception as e:
             print("Error while uploading document file")
             print(f"Error: {e}")
@@ -206,10 +178,8 @@ class Document:
 class Thread:
     def __init__(self, client):
         self.client = client
-        self.document = Document(client)
-        self.assistant = Assistant(client).create_assistant(
-            assistant_name="test", document_path="files/resume.docx"
-        )
+        self.assistant = Assistant(client, document_path="files/resume.docx")
+        self.document = self.assistant.document
         self.thread = client.client.beta.threads.create()
 
     def summarize_document(self, document_path: str):
@@ -222,13 +192,6 @@ class Thread:
         document_path : str
             Document path
         """
-        try:
-            self.document.upload_document_file(
-                file_path=document_path, purpose="assistants"
-            )
-        except Exception as e:
-            print("Error while uploading document file")
-            print(f"Error: {repr(e)}")
 
         try:
             file_id = self.document.view_files().data[0].id
@@ -255,13 +218,13 @@ class Thread:
 
         self.view_run(thread_id=self.thread.id, run_id=run)
 
-        self.check_for_message(thread_id=self.thread.id, run_id=run)
+        self.check_for_message(thread_id=self.thread.id)
 
         self.document.delete_file(file_id=file_id)
 
     def run_thread(self, thread, assistant):
         run = self.client.client.beta.threads.runs.create(
-            thread_id=thread.id, assistant_id=assistant.id
+            thread_id=thread.id, assistant_id=assistant.assistant.id
         )
 
         print(run)
@@ -327,4 +290,3 @@ if __name__ == "__main__":
     client = Client()
     thread = Thread(client)
     thread.summarize_document(document_path="files/resume.docx")
-    document = Document(client)
