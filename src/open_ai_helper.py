@@ -96,7 +96,7 @@ def create_assistant(
 class Assistant:
     def __init__(self, client, document_ids: list = None, assistant_name: str = None):
         self.client = client
-        
+
         self.assistant = create_assistant(
             client=client, document_ids=document_ids, assistant_name=assistant_name
         )
@@ -106,15 +106,25 @@ class Document:
     def __init__(self, client, document_path: str = None):
         self.client = client
         self.document_path = document_path
-        
+
+        file_name = document_path.split("/")[-1]
+
+        # Check if file exists
+        file_list = self.client.client.files.list(purpose="assistants")
+
+        for file in file_list.data:
+            if file.filename == file_name:
+                print("File already exists")
+                self.document = file
+                return None
+
         try:
             self.document = client.client.files.create(
-            file=open(document_path, "rb"), purpose="assistants"
-        )
+                file=open(document_path, "rb"), purpose="assistants"
+            )
         except Exception as e:
             print("Error while uploading document file")
             print(f"Error: {e}")
-
 
     def view_files(self, purpose: str = "assistants"):
         """view_files returns the list of files uploaded to the assistant
@@ -172,13 +182,12 @@ class Document:
 
 class AssistantDocs:
     def __init__(self, client, files: dict):
-        
         self.client = client
-        
+
         self.resume = Document(client, document_path=files["resume"])
         self.job_listing = Document(client, document_path=files["job_listing"])
-        
-        
+
+
 class Thread:
     def __init__(self, client):
         self.client = client
@@ -269,8 +278,9 @@ def view_message(client, thread_id: str, run_id: str):
         return message
 
 
-def ask_question(client, thread_id: str, assistant_id: str, question: str,
-                 document_ids: list = None):
+def ask_question(
+    client, thread_id: str, assistant_id: str, question: str, document_ids: list = None
+):
     """ask_question Ask a question
 
     Ask a question to the assistant
