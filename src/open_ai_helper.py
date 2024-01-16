@@ -279,7 +279,12 @@ def view_message(client, thread_id: str, run_id: str):
 
 
 def ask_question(
-    client, thread_id: str, assistant_id: str, question: str, document_ids: list = None
+    client,
+    thread_id: str,
+    assistant_id: str,
+    question: str,
+    document_ids: list = None,
+    one_word_answer: bool = False,
 ):
     """ask_question Ask a question
 
@@ -294,6 +299,12 @@ def ask_question(
     question : str
         Question to be asked
     """
+
+    if one_word_answer:
+        instruction = "Provide the relevant portion of the answer in brackets"
+    else:
+        instruction = None
+
     question = client.client.beta.threads.messages.create(
         thread_id=thread_id,
         role="user",
@@ -304,9 +315,14 @@ def ask_question(
     print(question)
 
     run = client.client.beta.threads.runs.create(
-        thread_id=thread_id, assistant_id=assistant_id
+        thread_id=thread_id, assistant_id=assistant_id, instructions=instruction
     )
 
     response = view_message(client=client, thread_id=thread_id, run_id=run.id)
+    
+    response_dict = {
+        "question": question,
+        "response": response
+    }
 
-    return response
+    return response_dict
