@@ -2,6 +2,7 @@ import time
 
 import yaml
 from openai import OpenAI
+from dataclasses_json import dataclass_json
 
 
 class Client:
@@ -319,10 +320,6 @@ def ask_question(
     )
 
     response = view_message(client=client, thread_id=thread_id, run_id=run.id)
-    
-    response_dict = {
-        "question": question,
-        "response": response
-    }
 
+    response_dict = {"question": question.dict(), "response": response.dict()}
     return response_dict
