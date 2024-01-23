@@ -1,8 +1,8 @@
 import time
 
 import yaml
-from openai import OpenAI
 from dataclasses_json import dataclass_json
+from openai import OpenAI
 
 
 class Client:
@@ -108,24 +108,24 @@ class Document:
         self.client = client
         self.document_path = document_path
 
-        file_name = document_path.split("/")[-1]
-
-        # Check if file exists
-        file_list = self.client.client.files.list(purpose="assistants")
-
-        for file in file_list.data:
-            if file.filename == file_name:
-                print("File already exists")
-                self.document = file
-                return None
-
-        try:
-            self.document = client.client.files.create(
-                file=open(document_path, "rb"), purpose="assistants"
-            )
-        except Exception as e:
-            print("Error while uploading document file")
-            print(f"Error: {e}")
+        if document_path:
+            # Check if file exists
+            file_list = self.client.client.files.list(purpose="assistants")
+            file_name = document_path.split("/")[-1]
+            for file in file_list.data:
+                if file.filename == file_name:
+                    print("File already exists")
+                    self.document = file
+                    return None
+            try:
+                self.document = client.client.files.create(
+                    file=open(document_path, "rb"), purpose="assistants"
+                )
+            except Exception as e:
+                print("Error while uploading document file")
+                print(f"Error: {e}")
+        else:
+            pass
 
     def view_files(self, purpose: str = "assistants"):
         """view_files returns the list of files uploaded to the assistant
@@ -318,6 +318,8 @@ def ask_question(
     run = client.client.beta.threads.runs.create(
         thread_id=thread_id, assistant_id=assistant_id, instructions=instruction
     )
+
+    print(run)
 
     response = view_message(client=client, thread_id=thread_id, run_id=run.id)
 

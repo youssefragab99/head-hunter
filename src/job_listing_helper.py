@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+
 from dataclasses_json import dataclass_json
 
 from open_ai_helper import (
@@ -44,7 +45,7 @@ class JobListingHelper:
             one_word_answer=True,
         )
 
-        print(job_title_response)
+        # print(job_title_response)
 
         job_location_response = ask_question(
             client=self.openai_client,
@@ -55,22 +56,50 @@ class JobListingHelper:
             one_word_answer=True,
         )
 
-        print(job_location_response)
+        # print(job_location_response)
 
-        return job_title_response, job_location_response
+        resume_changes = ask_question(
+            client=self.openai_client,
+            thread_id=thread.id,
+            assistant_id=self.assistant.assistant.id,
+            question=f"Based on the job description in this file {self.assistant_docs.job_listing.document.id}, \
+                what changes would you make to the resume at this location {self.assistant_docs.resume.document.id}?",
+            document_ids=[
+                self.assistant_docs.resume.document.id,
+                self.assistant_docs.job_listing.document.id,
+            ],
+        )
+
+        cover_letter = ask_question(
+            client=self.openai_client,
+            thread_id=thread.id,
+            assistant_id=self.assistant.assistant.id,
+            question=f"Using the resume in this file {self.assistant_docs.resume.document.id}, \
+                write a cover letter for the job description in the following file \
+                    {self.assistant_docs.job_listing.document.id}",
+            document_ids=[
+                self.assistant_docs.resume.document.id,
+                self.assistant_docs.job_listing.document.id,
+            ],
+        )
+
+        return {
+            "job_title": job_title_response,
+            "job_location": job_location_response,
+            "resume_changes": resume_changes,
+            "cover_letter": cover_letter,
+        }
 
     def process_listing(self):
-        title_info, location_info = self.extract_job_info()
-
-        response_dict = {"title": title_info, "location": location_info}
+        job_info = self.extract_job_info()
 
         try:
             with open(f"{self.output_path}/test_output.json", "w") as f:
-                json.dump(response_dict, f, indent=4)
+                json.dump(job_info, f, indent=4)
         except FileNotFoundError:
             print("Output file not found, creating file")
             with open(f"{self.output_path}/test_output.json", "x") as f:
-                json.dump(response_dict, f, indent=4)
+                json.dump(job_info, f, indent=4)
 
 
 if __name__ == "__main__":
