@@ -1,6 +1,22 @@
-from open_ai_helper import Client, Assistant 
+from open_ai_helper import *
 
 client = Client()
 
-assistant = Assistant(client, assistant_name="test_assistant_1")
+assistants = Assistant()
 
+assistant = assistants.create(assistant_name="test")
+
+print(assistant)
+
+file = File()
+
+test_file = file.create(document_path="files/resume.dox")
+
+print(test_file)
+
+thread = Thread()
+
+response = thread.ask_question(assistant_id=assistant.id, question="how are you")
+
+
+print(response)

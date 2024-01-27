@@ -7,7 +7,7 @@ from open_ai_helper import (
     Assistant,
     AssistantDocs,
     Client,
-    Document,
+    File,
     Thread,
     ask_question,
     view_message,
