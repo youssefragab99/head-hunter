@@ -108,7 +108,7 @@ class File:
             if file.filename == file_name:
                 print("File already exists")
                 self.document = file
-                return None
+                return file
         try:
             file = self.file = self.files.create(
                 file=open(document_path, "rb"), purpose="assistants"

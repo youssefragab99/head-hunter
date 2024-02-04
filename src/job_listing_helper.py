@@ -3,32 +3,23 @@ from dataclasses import dataclass
 
 from dataclasses_json import dataclass_json
 
-from open_ai_helper import (
-    Assistant,
-    AssistantDocs,
-    Client,
-    File,
-    Thread,
-    ask_question,
-    view_message,
-)
+from open_ai_helper import Assistant, AssistantDocs, Client, File, Thread
 
 
 class JobListingHelper:
     def __init__(self, resume_path: str, listing_path: str, output_path: str = None):
         self.openai_client = Client()
-        self.thread = Thread(self.openai_client)
+        self.thread = Thread()
         self.output_path = output_path
 
         docs_dict = {"resume": resume_path, "job_listing": listing_path}
 
-        self.assistant_docs = AssistantDocs(self.openai_client, files=docs_dict)
+        self.assistant_docs = AssistantDocs(files=docs_dict)
 
-        self.assistant = Assistant(
-            self.openai_client,
+        self.assistant = Assistant().create(
             document_ids=[
-                self.assistant_docs.resume.document.id,
-                self.assistant_docs.job_listing.document.id,
+                self.assistant_docs.resume.id,
+                self.assistant_docs.job_listing.id,
             ],
             assistant_name="Job Listing Assistant",
         )
@@ -36,50 +27,42 @@ class JobListingHelper:
     def extract_job_info(self):
         thread = self.thread.thread
 
-        job_title_response = ask_question(
-            client=self.openai_client,
-            thread_id=thread.id,
-            assistant_id=self.assistant.assistant.id,
+        job_title_response = self.thread.ask_question(
+            assistant_id=self.assistant.id,
             question="What is the job title for the job description provided?",
-            document_ids=[self.assistant_docs.job_listing.document.id],
+            document_ids=[self.assistant_docs.job_listing.id],
             one_word_answer=True,
         )
 
         # print(job_title_response)
 
-        job_location_response = ask_question(
-            client=self.openai_client,
-            thread_id=thread.id,
-            assistant_id=self.assistant.assistant.id,
+        job_location_response = self.thread.ask_question(
+            assistant_id=self.assistant.id,
             question="What is the job location for the job description provided?",
-            document_ids=[self.assistant_docs.job_listing.document.id],
+            document_ids=[self.assistant_docs.job_listing.id],
             one_word_answer=True,
         )
 
         # print(job_location_response)
 
-        resume_changes = ask_question(
-            client=self.openai_client,
-            thread_id=thread.id,
-            assistant_id=self.assistant.assistant.id,
-            question=f"Based on the job description in this file {self.assistant_docs.job_listing.document.id}, \
-                what changes would you make to the resume at this location {self.assistant_docs.resume.document.id}?",
+        resume_changes = self.thread.ask_question(
+            assistant_id=self.assistant.id,
+            question=f"Based on the job description in this file {self.assistant_docs.job_listing.id}, \
+                what changes would you make to the resume at this location {self.assistant_docs.resume.id}?",
             document_ids=[
-                self.assistant_docs.resume.document.id,
-                self.assistant_docs.job_listing.document.id,
+                self.assistant_docs.resume.id,
+                self.assistant_docs.job_listing.id,
             ],
         )
 
-        cover_letter = ask_question(
-            client=self.openai_client,
-            thread_id=thread.id,
-            assistant_id=self.assistant.assistant.id,
-            question=f"Using the resume in this file {self.assistant_docs.resume.document.id}, \
+        cover_letter = self.thread.ask_question(
+            assistant_id=self.assistant.id,
+            question=f"Using the resume in this file {self.assistant_docs.resume.id}, \
                 write a cover letter for the job description in the following file \
-                    {self.assistant_docs.job_listing.document.id}",
+                    {self.assistant_docs.job_listing.id}",
             document_ids=[
-                self.assistant_docs.resume.document.id,
-                self.assistant_docs.job_listing.document.id,
+                self.assistant_docs.resume.id,
+                self.assistant_docs.job_listing.id,
             ],
         )
 
