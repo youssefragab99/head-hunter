@@ -5,6 +5,12 @@ from dataclasses_json import dataclass_json
 
 from open_ai_helper import Assistant, AssistantDocs, Client, File, Thread
 
+config = {
+    "name": "job_listing_assistant",
+    "job_description": "",
+    "message": "Using the resume provided on file and the job description in this message, write 16 key words or skills to add to an area of expertise section in a new resume. Provide them in bullet point form. "
+}
+
 
 class JobListingHelper:
     def __init__(self, resume_path: str, listing_path: str, output_path: str = None):

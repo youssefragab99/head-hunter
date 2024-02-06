@@ -236,17 +236,6 @@ class Thread:
         messages = self.threads.messages.list(thread_id=thread_id)
         print(messages)
 
-    def view_thread(self, thread_id: str):
-        while True:
-            thread = self.threads.retrieve(thread_id=thread_id)
-            self.view_messages(thread_id=thread_id)
-            print(thread)
-            time.sleep(5)
-
-    def view_messages(self, thread_id: str):
-        messages = self.threads.messages.list(thread_id=thread_id)
-        return messages
-
     def view_message(self, thread_id: str, run_id: str):
         while True:
             thread = self.threads.retrieve(thread_id=thread_id)

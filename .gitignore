@@ -6,3 +6,9 @@ venv/
 
 # Vscode environment
 .vscode/
+
+# Files
+files/*
+
+# Pycache 
+src/__pycache__/
